@@ -1,0 +1,17 @@
+# Python virtual environments & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+# Streamlit session & local configs
+.streamlit/secrets.toml
+
+# Vector Store / Temporary Files
+*.log
+*.faiss
+*.pkl
+.DS_Store
+Thumbs.db
