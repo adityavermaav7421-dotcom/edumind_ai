@@ -16,7 +16,7 @@ except ImportError:
 
 try:
     import pytesseract
-except ImportError:
+except Exception:
     pytesseract = None
 
 from langchain_community.vectorstores import FAISS
