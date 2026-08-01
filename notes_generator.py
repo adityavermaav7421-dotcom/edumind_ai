@@ -55,13 +55,17 @@ class NotesGenerator:
 Read the educational document below (Pages {start_page} to {actual_end_page}) and generate detailed, well-structured study notes in {style} style.
 {topic_clause}
 
+STRICT FORMATTING RULES:
+- Do NOT mention page numbers (e.g. do NOT include 'Page 1', 'Page 2', etc.). Present content as a unified, seamless study guide.
+- Use bold headers for key section titles.
+
 REQUIRED NOTE STRUCTURE:
 1. 📌 **Executive Overview**: A 2-3 sentence summary of the core theme.
 2. 🔑 **Key Technical Concepts & Definitions**: Clear definitions of all important terms.
 3. 📝 **Detailed Breakdown & Core Mechanisms**: Clear, structured {style.lower()} explaining how key components/processes work.
 4. 💡 **Important Key Takeaways & Exam Tips**: Essential points to remember for exams.
 
-Document Text (Pages {start_page} to {actual_end_page}):
+Document Text:
 {full_range_text}
 
 Comprehensive Study Notes:"""
@@ -84,37 +88,52 @@ Comprehensive Study Notes:"""
         }
 
     def _generate_extractive_notes(self, docs: List[Document], style: str, start_p: int, end_p: int) -> str:
-        """Rich extractive summary fallback preserving original section headings and concept names."""
-        lines = [f"## 📋 Comprehensive Study Notes (Pages {start_p}-{end_p})\n"]
+        """Rich extractive summary fallback with seamless concept hierarchy, clean headings, and ZERO page numbers."""
+        import re
+        lines = [f"## 📋 Comprehensive Study Notes\n"]
         lines.append("### 📌 Executive Overview")
-        lines.append(f"These study notes cover core concepts, technical mechanisms, and definitions extracted from Pages {start_p} to {end_p}.\n")
-        lines.append("### 🔑 Key Concepts & Page Breakdown")
+        lines.append(f"These study notes synthesize the core concepts, technical mechanisms, and definitions from the selected study material.\n")
+        lines.append("### 🔑 Key Concepts & Technical Breakdown")
+
+        seen_lines = set()
+        heading_keywords = {"introduction", "features", "advantages", "disadvantages", "applications", "comparison", "overview", "components", "difference", "architecture", "unit", "concept"}
 
         for d in docs:
-            p_num = d.metadata.get("page", "?")
-            lines.append(f"\n#### Page {p_num}")
-            
             content = d.page_content.strip()
             raw_lines = [l.strip() for l in content.split("\n") if l.strip()]
             
             for line in raw_lines:
-                if len(line) < 3:
+                clean_raw = line.strip("*: -")
+                # Ignore page headers, page numbers, or short junk lines
+                if not clean_raw or len(clean_raw) < 3 or re.match(r"^(Page\s*\d+|\[Page\s*\d+\]|===\s*Page)$", clean_raw, re.I) or clean_raw.startswith("==="):
                     continue
                 
-                # Format headings or key-value definitions cleanly
-                if len(line) < 65 and not line.endswith(".") and (":" not in line or line.count(" ") < 6):
-                    lines.append(f"\n**📌 {line}**")
-                elif ":" in line:
+                if clean_raw.lower() in seen_lines:
+                    continue
+                seen_lines.add(clean_raw.lower())
+
+                # Detect true major section headings
+                is_major_heading = (
+                    any(kw in clean_raw.lower() for kw in heading_keywords) 
+                    or (clean_raw.isupper() and len(clean_raw) < 40)
+                    or (len(clean_raw) < 50 and clean_raw.endswith(":") and len(clean_raw.split()) <= 6)
+                )
+
+                if is_major_heading:
+                    clean_title = clean_raw.rstrip(":")
+                    lines.append(f"\n#### 📌 {clean_title}")
+                elif ":" in line and not line.lower().startswith("http"):
                     parts = line.split(":", 1)
-                    title = parts[0].strip()
+                    title = parts[0].strip("*: -")
                     body = parts[1].strip()
-                    if len(title) < 50 and not title.lower().startswith("http"):
+                    if len(title) < 45:
                         lines.append(f"- **{title}**: {body}")
                     else:
                         lines.append(f"- {line}")
                 else:
-                    lines.append(f"- {line}")
+                    lines.append(f"- {clean_raw}")
 
-        lines.append("\n### 💡 Important Takeaways")
-        lines.append("- Review all bolded technical terms, comparisons, and definitions above for exam preparation.")
+        lines.append("\n### 💡 Important Takeaways & Exam Tips")
+        lines.append("- Review all bolded technical terms, comparisons, and core mechanisms above for exam preparation.")
+        lines.append("- Ensure clear understanding of key definitions and system architecture components.")
         return "\n".join(lines)
