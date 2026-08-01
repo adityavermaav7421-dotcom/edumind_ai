@@ -11,6 +11,11 @@ Saves all generated outputs to 'demo_backup_output.txt' as a live backup.
 
 import sys
 import time
+
+# Ensure UTF-8 output encoding across Windows and Linux
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
 from langchain_core.documents import Document
 from ollama_client import call_ollama
 from rag_engine import RAGEngine

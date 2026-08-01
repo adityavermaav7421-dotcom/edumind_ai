@@ -84,21 +84,37 @@ Comprehensive Study Notes:"""
         }
 
     def _generate_extractive_notes(self, docs: List[Document], style: str, start_p: int, end_p: int) -> str:
-        """Rich extractive summary fallback ensuring high-quality notes are ALWAYS generated."""
+        """Rich extractive summary fallback preserving original section headings and concept names."""
         lines = [f"## 📋 Comprehensive Study Notes (Pages {start_p}-{end_p})\n"]
         lines.append("### 📌 Executive Overview")
-        lines.append(f"These study notes cover key concepts and technical mechanisms extracted from Pages {start_p} to {end_p}.\n")
+        lines.append(f"These study notes cover core concepts, technical mechanisms, and definitions extracted from Pages {start_p} to {end_p}.\n")
         lines.append("### 🔑 Key Concepts & Page Breakdown")
 
         for d in docs:
             p_num = d.metadata.get("page", "?")
-            sents = [s.strip() for s in d.page_content.split(".") if len(s.strip().split()) >= 6]
-            if sents:
-                lines.append(f"#### Page {p_num}")
-                for s in sents[:4]:
-                    lines.append(f"- **Key Point**: {s}.")
-                lines.append("")
+            lines.append(f"\n#### Page {p_num}")
+            
+            content = d.page_content.strip()
+            raw_lines = [l.strip() for l in content.split("\n") if l.strip()]
+            
+            for line in raw_lines:
+                if len(line) < 3:
+                    continue
+                
+                # Format headings or key-value definitions cleanly
+                if len(line) < 65 and not line.endswith(".") and (":" not in line or line.count(" ") < 6):
+                    lines.append(f"\n**📌 {line}**")
+                elif ":" in line:
+                    parts = line.split(":", 1)
+                    title = parts[0].strip()
+                    body = parts[1].strip()
+                    if len(title) < 50 and not title.lower().startswith("http"):
+                        lines.append(f"- **{title}**: {body}")
+                    else:
+                        lines.append(f"- {line}")
+                else:
+                    lines.append(f"- {line}")
 
-        lines.append("### 💡 Important Takeaways")
-        lines.append("- Review all bolded technical terms and definitions above for exam preparation.")
+        lines.append("\n### 💡 Important Takeaways")
+        lines.append("- Review all bolded technical terms, comparisons, and definitions above for exam preparation.")
         return "\n".join(lines)

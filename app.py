@@ -1,4 +1,5 @@
 import os
+os.environ["TZ"] = "UTC"
 import re
 import streamlit as st
 
