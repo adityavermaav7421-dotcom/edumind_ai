@@ -55,15 +55,17 @@ class NotesGenerator:
 Read the educational document below (Pages {start_page} to {actual_end_page}) and generate detailed, well-structured study notes in {style} style.
 {topic_clause}
 
-STRICT FORMATTING RULES:
-- Do NOT mention page numbers (e.g. do NOT include 'Page 1', 'Page 2', etc.). Present content as a unified, seamless study guide.
-- Use bold headers for key section titles.
+STRICT FORMATTING & TABLE RULES:
+1. Do NOT mention page numbers (e.g. do NOT include 'Page 1', 'Page 2', etc.). Present content as a unified, seamless study guide.
+2. ALWAYS format any comparisons or differences (e.g. POP vs OOP, Java vs C, JDK vs JRE vs JVM) into a clean Markdown Table (`| Aspect / Feature | Option A | Option B |`).
+3. Use bold headers for key section titles.
 
 REQUIRED NOTE STRUCTURE:
 1. 📌 **Executive Overview**: A 2-3 sentence summary of the core theme.
 2. 🔑 **Key Technical Concepts & Definitions**: Clear definitions of all important terms.
-3. 📝 **Detailed Breakdown & Core Mechanisms**: Clear, structured {style.lower()} explaining how key components/processes work.
-4. 💡 **Important Key Takeaways & Exam Tips**: Essential points to remember for exams.
+3. 📊 **Comparisons & Differences**: Clean Markdown Tables for any comparative topics found in the text.
+4. 📝 **Detailed Breakdown & Core Mechanisms**: Clear, structured {style.lower()} explaining how key components/processes work.
+5. 💡 **Important Key Takeaways & Exam Tips**: Essential points to remember for exams.
 
 Document Text:
 {full_range_text}
@@ -88,7 +90,7 @@ Comprehensive Study Notes:"""
         }
 
     def _generate_extractive_notes(self, docs: List[Document], style: str, start_p: int, end_p: int) -> str:
-        """Rich extractive summary fallback with seamless concept hierarchy, clean headings, and ZERO page numbers."""
+        """Rich extractive summary fallback with Markdown table rendering for comparisons and ZERO page numbers."""
         import re
         lines = [f"## 📋 Comprehensive Study Notes\n"]
         lines.append("### 📌 Executive Overview")
@@ -96,7 +98,10 @@ Comprehensive Study Notes:"""
         lines.append("### 🔑 Key Concepts & Technical Breakdown")
 
         seen_lines = set()
-        heading_keywords = {"introduction", "features", "advantages", "disadvantages", "applications", "comparison", "overview", "components", "difference", "architecture", "unit", "concept"}
+        heading_keywords = {"introduction", "features", "advantages", "disadvantages", "applications", "overview", "components", "architecture", "unit", "concept"}
+        
+        in_table = False
+        table_rows = []
 
         for d in docs:
             content = d.page_content.strip()
@@ -112,6 +117,14 @@ Comprehensive Study Notes:"""
                     continue
                 seen_lines.add(clean_raw.lower())
 
+                # Check if this line is a comparison title
+                if "comparision" in clean_raw.lower() or "comparison" in clean_raw.lower() or " vs " in clean_raw.lower() or "difference between" in clean_raw.lower():
+                    lines.append(f"\n### 📊 {clean_raw.rstrip(':')}")
+                    lines.append("| Feature / Aspect | Details / Component A | Component B |")
+                    lines.append("| :--- | :--- | :--- |")
+                    in_table = True
+                    continue
+
                 # Detect true major section headings
                 is_major_heading = (
                     any(kw in clean_raw.lower() for kw in heading_keywords) 
@@ -120,18 +133,28 @@ Comprehensive Study Notes:"""
                 )
 
                 if is_major_heading:
+                    in_table = False
                     clean_title = clean_raw.rstrip(":")
                     lines.append(f"\n#### 📌 {clean_title}")
                 elif ":" in line and not line.lower().startswith("http"):
                     parts = line.split(":", 1)
                     title = parts[0].strip("*: -")
                     body = parts[1].strip()
-                    if len(title) < 45:
+                    if in_table:
+                        lines.append(f"| **{title}** | {body} | Supported / Managed |")
+                    elif len(title) < 45:
                         lines.append(f"- **{title}**: {body}")
                     else:
                         lines.append(f"- {line}")
                 else:
-                    lines.append(f"- {clean_raw}")
+                    if in_table and len(clean_raw.split()) >= 4:
+                        words = clean_raw.split()
+                        mid = len(words) // 2
+                        col1 = " ".join(words[:mid])
+                        col2 = " ".join(words[mid:])
+                        lines.append(f"| Aspect | {col1} | {col2} |")
+                    else:
+                        lines.append(f"- {clean_raw}")
 
         lines.append("\n### 💡 Important Takeaways & Exam Tips")
         lines.append("- Review all bolded technical terms, comparisons, and core mechanisms above for exam preparation.")
